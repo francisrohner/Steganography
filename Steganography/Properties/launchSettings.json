@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Steganography": {
+      "commandName": "Project",
+      "commandLineArgs": "mountains.steg.jpg"
+    }
+  }
+}
