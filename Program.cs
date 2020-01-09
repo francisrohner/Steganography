@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Steganography
@@ -40,23 +41,34 @@ namespace Steganography
 
         static void Main(string[] args)
         {
-            
             if (args.Length >= 2)
             {
-                EncodeDataInImage(args);
+                EncodeDataInImage(args[0], args[1]);
             }
             else if (args.Length == 1)
             {
-                DecodeDataFromImage(args);
+                DecodeDataFromImage(args[0]);
+            }
+            else
+            {
+                //Run Test
+                if (File.Exists("payload.txt") && File.Exists("mountains.jpg"))
+                {
+                    File.Copy("payload.txt", "test-payload.txt", true);
+                    EncodeDataInImage("test-payload.txt", "mountains.jpg");
+                    File.Delete("test-payload.txt");
+                    DecodeDataFromImage("mountains.steg.jpg");
+                }
             }
         }
 
-        private static void DecodeDataFromImage(string[] args)
+        private static void DecodeDataFromImage(string filePath)
         {
-            Bitmap bmp = Image.FromFile(args[0]) as Bitmap;
+            Bitmap bmp = Image.FromFile(filePath) as Bitmap;
             List<byte> buf = new List<byte>();
             bool[] currentArr = new bool[8];
             int pos = 0;
+            int fileNameLength = -1;
             int payloadLength = -1;
             bool exit = false;
             for (int x = 0; x < bmp.Width && !exit; x++)
@@ -70,31 +82,28 @@ namespace Steganography
                         buf.Add(BoolArrToByte(currentArr));
                         pos = 0;
                     }
-                    if (buf.Count == 8 && payloadLength == -1)
+                    if (buf.Count == 12 && fileNameLength == -1)
                     {
                         //Check for magic
                         byte[] bufArr = buf.ToArray();
                         try
                         {
-
                             string magic = Encoding.UTF8.GetString(bufArr, 0, 4);
                             if (magic != "STEG")
                             {
                                 throw new Exception();
                             }
-                            Console.WriteLine(magic);
+                            //Console.WriteLine(magic);
+                            fileNameLength = BitConverter.ToInt32(bufArr, 4);
+                            payloadLength = BitConverter.ToInt32(bufArr, 8);
                         }
                         catch
                         {
                             Console.ForegroundColor = ConsoleColor.Red;
                             Console.WriteLine("Magic not found"); return;
                         }
-
-                        payloadLength = BitConverter.ToInt32(bufArr, 4);
-                        
-                        Console.WriteLine($"{payloadLength} payload length");
                     }
-                    else if (payloadLength != -1 && buf.Count == (payloadLength + 8))
+                    else if (fileNameLength != -1 && buf.Count == (fileNameLength + payloadLength + 12))
                     {
                         exit = true;
                     }
@@ -104,35 +113,43 @@ namespace Steganography
             Console.WriteLine();
 
             byte[] data = buf.ToArray();
-            string msg = Encoding.UTF8.GetString(data, 8, payloadLength);
-            Console.WriteLine(msg);
+            string fileName = Encoding.UTF8.GetString(data, 12, fileNameLength);
+            Console.WriteLine($"File name was {fileName}");
+            byte[] payload = new byte[payloadLength];
+            Array.Copy(data, 12 + fileNameLength, payload, 0, payload.Length);
+            File.WriteAllBytes(fileName, payload);
         }
 
-        private static void EncodeDataInImage(string[] args)
+        private static void EncodeDataInImage(string payloadPath, string imagePath)
         {
-            byte[] payload = File.ReadAllBytes(args[0]);
-            //return;
-            byte[] header = new byte[8];
+            byte[] data = File.ReadAllBytes(payloadPath);
+            byte[] fileName = Encoding.UTF8.GetBytes(payloadPath.Split('\\').Last());
+            byte[] header = new byte[12];
             Array.Copy(Encoding.UTF8.GetBytes("STEG"), 0, header, 0, 4); //MAGIC check
-            Array.Copy(BitConverter.GetBytes(payload.Length), 0, header, 4, 4);
-
-            byte[] newPayload = new byte[payload.Length + 8];
-            Array.Copy(header, 0, newPayload, 0, 8);
-            Array.Copy(payload, 0, newPayload, 8, payload.Length);
-            payload = newPayload;
-
+            Array.Copy(BitConverter.GetBytes(fileName.Length), 0, header, 4, 4); //FileName Length
+            Array.Copy(BitConverter.GetBytes(data.Length), 0, header, 8, 4); //Data length
+            List<byte[]> payloadLst = new List<byte[]>();
+            payloadLst.Add(header);
+            payloadLst.Add(fileName);
+            payloadLst.Add(data);
+            
+            byte[] payload = new byte[payloadLst.Sum(x => x.Length)];
+            int offset = 0;
+            foreach (byte[] arr in payloadLst)
+            {
+                Array.Copy(arr, 0, payload, offset, arr.Length);
+                offset += arr.Length;
+            }
             Console.WriteLine($"Storing {payload.Length * 8} bits");
-            //BitConverter.GetBytes(0).Length
-            //int lastX, lastY;
             int bitsStored = 0;
             try
             {
-                string newFile = args[1].Substring(0, args[1].LastIndexOf(".")) + ".steg" +
-                                 args[1].Substring(args[1].LastIndexOf("."));
-                Bitmap bmp = Image.FromFile(args[1]) as Bitmap;
+                string newFile = imagePath.Substring(0, imagePath.LastIndexOf(".")) + ".steg" +
+                                 imagePath.Substring(imagePath.LastIndexOf("."));
+                
+                Bitmap bmp = Image.FromFile(imagePath) as Bitmap;
+                Console.WriteLine($"{(bmp.Width * bmp.Height) / 8} Bits Available");
                 bmp.MakeTransparent();
-                //int spaceCounter = 0;
-                //int spacing = 10;
                 int i = 0;
                 int pos = 0;
                 for (int x = 0; x < bmp.Width && i < payload.Length; x++)
@@ -152,14 +169,13 @@ namespace Steganography
                     }
                 }
 
-
                 bmp.Save(newFile, ImageFormat.Png);
                 Console.WriteLine($"{bitsStored} bits stored!");
             }
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Failed to load image {args[1]}");
+                Console.WriteLine($"Failed to load image {imagePath}");
             }
         }
     }
