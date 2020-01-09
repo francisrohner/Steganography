@@ -76,10 +76,10 @@ namespace Steganography
                 for (int y = 0; y < bmp.Height && !exit; y++)
                 {
                     Color color = bmp.GetPixel(x, y);
-                    currentArr[pos++] = CheckBit(color.A, 3);
-                    currentArr[pos++] = CheckBit(color.R, 3);
-                    currentArr[pos++] = CheckBit(color.G, 3);
-                    currentArr[pos++] = CheckBit(color.B, 3);
+                    currentArr[pos++] = CheckBit(color.A, 0);
+                    currentArr[pos++] = CheckBit(color.R, 0);
+                    currentArr[pos++] = CheckBit(color.G, 0);
+                    currentArr[pos++] = CheckBit(color.B, 0);
 
                     if (pos == 8)
                     {
@@ -159,14 +159,13 @@ namespace Steganography
                 {
                     for (int y = 0; y < bmp.Height && i < payload.Length; y++)
                     {
-                        //bool currentBit = CheckBit(payload[i], pos++);
                         Color color = bmp.GetPixel(x, y);
                         bmp.SetPixel(x, y, 
                             Color.FromArgb(
-                                CheckBit(payload[i], pos++) ? SetBit(color.A, 3) : ClearBit(color.A, 3), //Alpha
-                                CheckBit(payload[i], pos++) ? SetBit(color.R, 3) : ClearBit(color.R, 3), //Red
-                                CheckBit(payload[i], pos++) ? SetBit(color.G, 3) : ClearBit(color.G, 3), //Green
-                                CheckBit(payload[i], pos++) ? SetBit(color.B, 3) : ClearBit(color.B, 3) //Blue
+                                CheckBit(payload[i], pos++) ? SetBit(color.A, 0) : ClearBit(color.A, 0), //Alpha
+                                CheckBit(payload[i], pos++) ? SetBit(color.R, 0) : ClearBit(color.R, 0), //Red
+                                CheckBit(payload[i], pos++) ? SetBit(color.G, 0) : ClearBit(color.G, 0), //Green
+                                CheckBit(payload[i], pos++) ? SetBit(color.B, 0) : ClearBit(color.B, 0) //Blue
                                 ));
                         if (pos == 8)
                         {
