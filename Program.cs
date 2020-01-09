@@ -77,6 +77,10 @@ namespace Steganography
                 {
                     Color color = bmp.GetPixel(x, y);
                     currentArr[pos++] = CheckBit(color.A, 3);
+                    currentArr[pos++] = CheckBit(color.R, 3);
+                    currentArr[pos++] = CheckBit(color.G, 3);
+                    currentArr[pos++] = CheckBit(color.B, 3);
+
                     if (pos == 8)
                     {
                         buf.Add(BoolArrToByte(currentArr));
@@ -141,7 +145,6 @@ namespace Steganography
                 offset += arr.Length;
             }
             Console.WriteLine($"Storing {payload.Length * 8} bits");
-            int bitsStored = 0;
             try
             {
                 string newFile = imagePath.Substring(0, imagePath.LastIndexOf(".")) + ".steg" +
@@ -156,21 +159,23 @@ namespace Steganography
                 {
                     for (int y = 0; y < bmp.Height && i < payload.Length; y++)
                     {
-                        bool currentBit = CheckBit(payload[i], pos++);
-                        ++bitsStored;
+                        //bool currentBit = CheckBit(payload[i], pos++);
+                        Color color = bmp.GetPixel(x, y);
+                        bmp.SetPixel(x, y, 
+                            Color.FromArgb(
+                                CheckBit(payload[i], pos++) ? SetBit(color.A, 3) : ClearBit(color.A, 3), //Alpha
+                                CheckBit(payload[i], pos++) ? SetBit(color.R, 3) : ClearBit(color.R, 3), //Red
+                                CheckBit(payload[i], pos++) ? SetBit(color.G, 3) : ClearBit(color.G, 3), //Green
+                                CheckBit(payload[i], pos++) ? SetBit(color.B, 3) : ClearBit(color.B, 3) //Blue
+                                ));
                         if (pos == 8)
                         {
                             pos = 0;
                             i++;
                         }
-                        Color color = bmp.GetPixel(x, y);
-                        int newAlpha = currentBit ? SetBit(color.A, 3) : ClearBit(color.A, 3);
-                        bmp.SetPixel(x, y, Color.FromArgb(newAlpha, color.R, color.G, color.B));
                     }
                 }
-
                 bmp.Save(newFile, ImageFormat.Png);
-                Console.WriteLine($"{bitsStored} bits stored!");
             }
             catch (Exception ex)
             {
